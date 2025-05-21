@@ -22,9 +22,22 @@ public class Task1 extends Task implements Callback {
             "Task 1",
                 CallbackType.TASK1,
             """
-            Test
+                    Yandex Go is a service for ordering rides that operates in more than 10 countries around the world.
+                    
+                    The application is available in AppStore and Google Play.
+                    
+                    You can also make an order in the web interface of Yandex Go.
+                    
+                    Place orders using this link and you will receive a bonus in the form of stars⭐️
+                    
+                    Countries: Armenia, Belarus, Georgia, Kirgizia, Kazakhstan,
+                    Russia, Uzbekistan, Serbia.
+                    
+                    Purpose: Install the app and book your first trip
+                    
+                    Reward: 60⭐️
             """,
-                "https://offer.com/install",
+                "https://whjre.com/v2/click-B6w0w-W6yPaD-PDp7y-0dba325c?tl=1&erid=LdtCKK463",
                 20,
                 true);
         this.bot = bot;
@@ -40,12 +53,12 @@ public class Task1 extends Task implements Callback {
         log.info("[{}] Коллбэк {} от пользователя {} [id={}]",
                 update.getUpdateId(), getType(), userName, userId);
 
-        String link = String.format("https://offer.com/install?xid=%d_%s", userId, getTaskCode());
+        String link = String.format(getLink() + "?xid=%d_%s", userId, getTaskCode());
 
         // Формируем сообщение с описанием задания и кнопкой "Проверить"
         SendMessage message = SendMessage.builder()
                 .chatId(chatId)
-                .text(getDescription() + "\n" ) // Например: "Подпишись на канал"
+                .text(getDescription() + "\n" + link) // Например: "Подпишись на канал"
                 .replyMarkup(KeyboardUtils.buildCheckButton(getTaskCode())) // Кнопка: "Проверить"
                 .build();
 

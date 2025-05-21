@@ -51,7 +51,7 @@ public class CheckCallback implements Callback {
         }
 
         // Ссылка на Google Apps Script, который проверяет выполнение задания
-        String checkUrl = "https://script.google.com/macros/s/AKfycbzudE9qaS5k1nuX171VF00RsxcxiW0oOeklUEwm6RPZc5IxkcsVDpYfWp2oO3wNCbSpaw/exec"
+        String checkUrl = "https://script.google.com/macros/s/AKfycbw5PpsEzx6qb--Kx4JLO9-NSyH39ADszyAnRYv8xa_sbwxMopHjxUPf93B96vWorMJoPA/exec"
                 + "?telegramId=" + userId
                 + "&taskCode=" + taskCode;
 

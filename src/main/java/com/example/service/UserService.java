@@ -48,6 +48,7 @@ public class UserService {
                 .username(username)
                 .firstName(firstName)
                 .lastName(lastName)
+                .referralCode(generateUniqueReferralCode())
                 .registeredAt(LocalDateTime.now())
                 .build();
 
@@ -87,6 +88,7 @@ public class UserService {
                 .username(username)
                 .firstName(firstName)
                 .lastName(lastName)
+                .referralCode(generateUniqueReferralCode())
                 .registeredAt(LocalDateTime.now())
                 .build();
 
@@ -131,7 +133,7 @@ public class UserService {
      */
     @Transactional
     public void completeTask(Long userId, String taskCode) {
-        User user = getUserById(userId);
+        User user = getUserByTelegramId(userId);
         user.getCompletedTasks().add(taskCode); // Добавляем задание в список выполненных
         userRepository.save(user);
     }
@@ -145,6 +147,7 @@ public class UserService {
     public void addStars(Long userId, int stars) {
         validateStarsAmount(stars); // Проверка лимитов
         userRepository.addStars(userId, stars); // Обновление в БД
+        processReferralRewards(userId);
         log.debug("Added {} stars to user {}", stars, userId);// Логирование
     }
 
@@ -161,57 +164,30 @@ public class UserService {
 
 
     // Выдаём награды за приглашённых
-    @Scheduled(cron = "${reward.referral.schedule:0 0 12 * * ?}")
     @Transactional
-    public void processReferralRewards() {
-        int minStarsRequired = rewardConfig.getMinStars().getMinStarsForReward();
+    public void processReferralRewards(Long userId) {
+        User referral = getUserByTelegramId(userId);
+        if (referral.getFatherReferer() != null){
+            User referrer = referral.getFatherReferer();
+            if(!referral.isReferralRewardGiven()) {
+                try {
+                    int bonus = rewardConfig.getReferral().getBonus();
 
-        // Находим только тех, кто:
-        // - набрал нужное количество звёзд
-        // - ещё не получил награду (referralRewardGiven = false)
-        // - был зарегистрирован по реферальной ссылке (fatherReferer != null)
-        // - invitedBy всё ещё null (то есть награда не выдавалась)
-        List<User> eligibleReferrals = userRepository.findEligibleReferralsWithNullInvitedBy(minStarsRequired);
-
-        if (eligibleReferrals.isEmpty()) {
-            log.info("Нет подходящих рефералов для начисления бонусов");
-            return;
-        }
-
-        // Группируем по пригласившему
-        Map<User, List<User>> referralsByReferrer = eligibleReferrals.stream()
-                .filter(user -> user.getFatherReferer() != null)
-                .collect(Collectors.groupingBy(User::getFatherReferer));
-
-        int totalProcessed = 0;
-
-        for (Map.Entry<User, List<User>> entry : referralsByReferrer.entrySet()) {
-            User referrer = entry.getKey();
-            List<User> referrals = entry.getValue();
-
-            try {
-                int bonus = rewardConfig.getReferral().getBonus();
-                int totalBonus = bonus * referrals.size();
-
-                for (User referral : referrals) {
                     referral.setInvitedBy(referrer);
                     referral.setReferralRewardGiven(true);
                     userRepository.save(referral);
+
+                    userRepository.addStars(referrer.getId(), bonus);
+                    userRepository.incrementReferralCount(referrer.getId());
+
+                    log.info("Начислено {} звёзд пользователю {}, за пользователя {}",
+                            bonus, referrer.getUsername(), referral.getUsername());
+
+                } catch (Exception e) {
+                    log.error("Ошибка начисления бонуса для пользователя {}: {}", referrer.getId(), e.getMessage());
                 }
-
-                userRepository.addStars(referrer.getId(), totalBonus);
-                userRepository.incrementReferralCount(referrer.getId());
-                totalProcessed += referrals.size();
-
-                log.info("Начислено {} звёзд пользователю {} за {} верифицированных рефералов",
-                        totalBonus, referrer.getId(), referrals.size());
-
-            } catch (Exception e) {
-                log.error("Ошибка начисления бонуса для пользователя {}: {}", referrer.getId(), e.getMessage());
             }
         }
-
-        log.info("Итого обработано верифицированных рефералов: {}", totalProcessed);
     }
 
     /**
